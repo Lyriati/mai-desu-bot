@@ -6,33 +6,37 @@ import os
 class AutoResponder(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Dynamically build the path to the responses file
-        self.responses_file = os.path.join(os.getcwd(), 'responses', 'responses.txt')
+        # Define paths for both files
+        self.normal_file = os.path.join(os.getcwd(), 'responses', 'responses.txt')
+        self.chaotic_file = os.path.join(os.getcwd(), 'responses', 'chaotic_responses.txt')
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # Ignore messages from the bot itself to prevent infinite loops
+        # Ignore messages from the bot itself
         if message.author == self.bot.user:
             return
 
-        # Check for the trigger phrase (converted to lowercase for easier matching)
         if "hi mai-desu" in message.content.lower():
+            # Roll a random number between 0.0 and 1.0
+            # A 0.10 means there is a 10% chance for a chaotic response
+            is_chaotic = random.random() < 0.10
+            
+            # Select which file to open based on the roll
+            target_file = self.chaotic_file if is_chaotic else self.normal_file
+            
             try:
-                # Read the file every time so it updates without restarting the bot
-                with open(self.responses_file, 'r', encoding='utf-8') as file:
-                    # Strip whitespace and ignore empty lines
+                # Read the chosen file dynamically
+                with open(target_file, 'r', encoding='utf-8') as file:
                     responses = [line.strip() for line in file if line.strip()]
                 
                 if responses:
-                    # Choose a perfectly random response and send it
                     reply = random.choice(responses)
                     await message.channel.send(reply)
                 else:
-                    print("Warning: responses.txt is empty.")
+                    print(f"Warning: {target_file} is empty.")
                     
             except FileNotFoundError:
-                print(f"Error: Could not find {self.responses_file}")
+                print(f"Error: Could not find {target_file}")
 
-# This setup function is required for discord.py to load the Cog
 async def setup(bot):
     await bot.add_cog(AutoResponder(bot))
