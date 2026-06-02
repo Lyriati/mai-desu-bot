@@ -53,7 +53,11 @@ class WikiMiner(commands.Cog):
                 if not summary:
                     clean_text = wikitext
                     
-                    # Recursively strip out all messy {{Infoboxes}} and templates
+                    # 1. Strip out citation footnotes (<ref> tags) completely
+                    clean_text = re.sub(r'<ref[^>]*>.*?</ref>', '', clean_text, flags=re.DOTALL)
+                    clean_text = re.sub(r'<ref[^>]*/>', '', clean_text)
+                    
+                    # 2. Recursively strip out all messy {{Infoboxes}} and templates
                     while re.search(r'\{\{[^{}]*\}\}', clean_text):
                         clean_text = re.sub(r'\{\{[^{}]*\}\}', '', clean_text)
                     
