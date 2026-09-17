@@ -3,12 +3,17 @@ from discord.ext import commands
 from discord import app_commands
 import urllib.parse
 import random
+import os
 from collections import deque
 
 class GelbooruMiner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.recent_images = deque(maxlen=3)
+        
+        # Mai securely loads her clearance codes from the .env file
+        self.api_key = os.getenv('GELBOORU_API_KEY')
+        self.user_id = os.getenv('GELBOORU_USER_ID')
 
     @app_commands.command(name="gelbooru", description="Mine the image database using custom tags.")
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -17,22 +22,24 @@ class GelbooruMiner(commands.Cog):
         
         await interaction.response.defer()
 
-        safe_tags = f"{tags} rating:general sort:random"
-        
-        # FIX 1: quote_plus specifically converts spaces into '+' signs, exactly how Gelbooru likes it
-        encoded_tags = urllib.parse.quote_plus(safe_tags)
-        url = f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=50&tags={encoded_tags}"
+        # Failsafe: Mai complains if you forgot to add the keys to the .env file
+        if not self.api_key or not self.user_id:
+            await interaction.followup.send("i'm throwing a 401 because you didn't give me an api key. update the .env file or i literally cannot do this.")
+            return
 
-        # FIX 2: Mai disguises herself as a custom app so Gelbooru's firewall doesn't block her
+        safe_tags = f"{tags} rating:general sort:random"
+        encoded_tags = urllib.parse.quote_plus(safe_tags)
+        
+        # Mai injects her VIP credentials into the URL so Gelbooru lets her in
+        url = f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=50&tags={encoded_tags}&api_key={self.api_key}&user_id={self.user_id}"
+
         headers = {
             "User-Agent": "Mai-desu/1.0 Discord Bot (Personal Project)"
         }
 
         try:
-            # Pass the fake headers into the request
             async with self.bot.session.get(url, headers=headers) as resp:
                 if resp.status != 200:
-                    # If it fails again, Mai will now tell us the exact HTTP error code so we can debug!
                     await interaction.followup.send(f"api is throwing a fit (HTTP {resp.status}). try again later.")
                     return
                 
@@ -64,10 +71,9 @@ class GelbooruMiner(commands.Cog):
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
             dialogue_options = [
-                "mined this from the database. sfw filter is on so discord doesn't smite us.",
+                "bypassed the firewall and mined this. sfw filter is on.",
                 "found one. if it looks weird, blame your tags, not my algorithm.",
-                "here. i added a randomizer so you don't keep staring at the same image.",
-                "database query successful. back to coding now.",
+                "database clearance accepted. here is your randomly sorted query.",
                 "image extracted. taking up my bandwidth for this... honestly typical."
             ]
 
