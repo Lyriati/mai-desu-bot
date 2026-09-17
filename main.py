@@ -3,7 +3,7 @@ from discord.ext import commands
 import os
 import aiohttp
 from dotenv import load_dotenv
-#test
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -29,6 +29,11 @@ class MaiDesuBot(commands.Bot):
                     print(f"Loaded extension: {filename}")
                 except Exception as e:
                     print(f"Failed to load extension {filename}: {e}")
+                    
+        # --- NEW CODE ADDED HERE ---
+        # Sync the slash commands to Discord after loading all extensions
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} slash commands globally!")
 
     async def close(self):
         """Cleanup when the bot shuts down."""

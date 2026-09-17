@@ -1,56 +1,49 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import random
 
 class EightBall(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # We add an alias so the user can type !8ball or !eightball
-    @commands.command(name="8ball", aliases=["eightball"])
-    async def magic_eightball(self, ctx, *, question: str = None):
-        """Input a query for Mai to calculate its probability."""
+    # Defines the slash command and its description in the Discord UI
+    @app_commands.command(name="8ball", description="Input a query for Mai to calculate its probability.")
+    # These two lines allow the bot to be installed to a user's account and used in DMs!
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def magic_eightball(self, interaction: discord.Interaction, question: str):
         
-        # Mai hates wasting time. If they don't ask a question, she calls them out.
-        if question is None:
-            await ctx.send("You didn't provide a parameter (question). Please don't waste my time.")
-            return
-
-        # Mai's custom probability matrix (Positive, Neutral, and Negative responses)
+        # Mai's custom probability matrix
         responses = [
-            # --- Positive / Yes ---
+            # Positive
             "The probability approaches 1. Let's not waste time debating it.",
             "Calculated and confirmed. Yes.",
             "My data mining suggests a highly favorable outcome.",
-            "It's as beautiful and true as a perfect mathematical equation. Yes.",
             "Logically speaking, yes. Now can I get back to my soldering?",
             "Boolean check returns: TRUE.",
             
-            # --- Neutral / Try Again ---
+            # Neutral
             "Insufficient data. Provide better parameters next time.",
             "The algorithm is currently stuck in an infinite loop. Ask again later.",
             "My sisters are being loud and I can't concentrate on the calculation. Try again.",
-            "Compiling... Error. Ask again when you have a more logical query.",
-            "I'm too busy optimizing my Minecraft server to answer that right now.",
             
-            # --- Negative / No ---
+            # Negative
             "Probability is exactly 0. A complete waste of time.",
             "I ran a simulation. The answer is a definitive no.",
             "False. Even a simple script could have told you that.",
-            "No. This query is as superficial as celebrity gossip.",
-            "Negative. Don't make me explain the math to you, it would take too long.",
-            "Absolutely not. I would rather listen to girl-to-girl talk than entertain this."
+            "Negative. Don't make me explain the math to you, it would take too long."
         ]
         
-        # Pick a random response from Mai's list
         reply = random.choice(responses)
         
-        # Format the output to look like a clean, logical readout
         formatted_response = (
-            f"> {reply}"
+            f"> **Query Input:** {question}\n"
+            f"> **Mai's Output:** {reply}"
         )
         
-        await ctx.send(formatted_response)
+        # With slash commands, you reply to the 'interaction' object
+        await interaction.response.send_message(formatted_response)
 
 async def setup(bot):
     await bot.add_cog(EightBall(bot))
