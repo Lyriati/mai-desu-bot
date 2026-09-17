@@ -12,7 +12,9 @@ class WhatWouldMaiSay(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def wwms(self, interaction: discord.Interaction):
         
-        # Casual, deadpan teen-programmer thoughts
+        # Mai immediately tells Discord she is typing, preventing the 404 timeout error
+        await interaction.response.defer()
+        
         unprompted_thoughts = [
             "polka lost her phone again. if anyone asks i didn't see it",
             "bro who left a whole ass kimono on my secondary monitor...",
@@ -34,7 +36,9 @@ class WhatWouldMaiSay(commands.Cog):
         ]
         
         reply = random.choice(unprompted_thoughts)
-        await interaction.response.send_message(reply)
+        
+        # Because we deferred, we MUST use followup.send instead of response.send_message
+        await interaction.followup.send(reply)
 
 async def setup(bot):
     await bot.add_cog(WhatWouldMaiSay(bot))
