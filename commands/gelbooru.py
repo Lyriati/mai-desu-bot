@@ -91,6 +91,7 @@ class GelbooruMiner(commands.Cog):
                 color=0x1abc9c
             )
             
+            embed.set_image(url=f"attachment://{clean_filename}")
             # Map the exact clean filename to the embed
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
