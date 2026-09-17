@@ -1,0 +1,107 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+import urllib.parse
+import random
+import os
+import io
+from collections import deque
+
+class NSFWBooruMiner(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.recent_images = deque(maxlen=3)
+        self.api_key = os.getenv('GELBOORU_API_KEY')
+        self.user_id = os.getenv('GELBOORU_USER_ID')
+
+    @app_commands.command(name="nsfwbooru", description="Mine the image database using custom tags, but this time lewdly. :3")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.nsfw()
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def fetch_image(self, interaction: discord.Interaction, tags: str):
+        
+        await interaction.response.defer()
+
+        if not self.api_key or not self.user_id:
+            await interaction.followup.send("i'm throwing a 401 because you didn't give me an api key. update the .env file or i literally cannot do this.")
+            return
+
+        safe_tags = f"{tags} sort:random"
+        encoded_tags = urllib.parse.quote_plus(safe_tags)
+        
+        url = f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=50&tags={encoded_tags}&api_key={self.api_key}&user_id={self.user_id}"
+
+        # --- THE FIX: Disguise Mai as a real web browser and fake the referer ---
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://gelbooru.com/"
+        }
+
+        try:
+            async with self.bot.session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    await interaction.followup.send(f"api is throwing a fit (HTTP {resp.status}). try again later.")
+                    return
+                
+                data = await resp.json(content_type=None)
+
+            posts = data.get('post', [])
+
+            if not posts:
+                await interaction.followup.send(f"my query for `{tags}` returned zero safe results. either it doesn't exist or your tags are weird.")
+                return
+
+            valid_posts = [p for p in posts if p.get('file_url') not in self.recent_images]
+
+            if not valid_posts:
+                valid_posts = posts
+
+            chosen_post = random.choice(valid_posts)
+            image_url = chosen_post.get('file_url')
+            post_id = chosen_post.get('id')
+            
+            dialogue_options = [
+                "bypassed the firewall and mined this. sfw filter is off.",
+                "found one. if it looks weird, blame your tags, not my algorithm.",
+                "database clearance accepted. here is your randomly sorted query.",
+                "image extracted. taking up my bandwidth for this... honestly typical.",
+                "little green would want you to not use condoms."
+            ]
+            reply = random.choice(dialogue_options)
+
+            if image_url.endswith(('.webm', '.mp4')):
+                await interaction.followup.send(content=f"{reply}\n{image_url}")
+                self.recent_images.append(image_url)
+                return
+
+            # Downloading the actual image bytes using the disguised headers
+            async with self.bot.session.get(image_url, headers=headers) as img_resp:
+                if img_resp.status != 200:
+                    await interaction.followup.send("i found the file, but their server refused my download request.")
+                    return
+                img_bytes = await img_resp.read()
+
+            ext = image_url.split('.')[-1].split('?')[0]
+            clean_filename = f"image.{ext}"
+            
+            image_file = discord.File(io.BytesIO(img_bytes), filename=clean_filename)
+
+            self.recent_images.append(image_url)
+
+            embed = discord.Embed(
+                title="Image Extraction Complete",
+                url=f"https://gelbooru.com/index.php?page=post&s=view&id={post_id}",
+                color=0x1abc9c
+            )
+            
+            embed.set_image(url=f"attachment://{clean_filename}")
+            embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
+
+            await interaction.followup.send(content=reply, embed=embed, file=image_file)
+
+        except Exception as e:
+            print(f"Gelbooru Fetch Error: {e}")
+            await interaction.followup.send("critical error in my image scraper. server probably timed out.")
+
+async def setup(bot):
+    await bot.add_cog(NSFWBooruMiner(bot))
