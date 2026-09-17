@@ -16,7 +16,7 @@ class NSFWBooruMiner(commands.Cog):
 
     @app_commands.command(name="nsfwbooru", description="Mine the image database using custom tags, but this time lewdly. :3")
     @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.nsfw()
+    @app_commands.checks.nsfw()
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def fetch_image(self, interaction: discord.Interaction, tags: str):
         
