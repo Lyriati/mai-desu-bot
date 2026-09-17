@@ -4,14 +4,13 @@ from discord import app_commands
 import urllib.parse
 import random
 import os
+import io
 from collections import deque
 
 class GelbooruMiner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.recent_images = deque(maxlen=3)
-        
-        # Mai securely loads her clearance codes from the .env file
         self.api_key = os.getenv('GELBOORU_API_KEY')
         self.user_id = os.getenv('GELBOORU_USER_ID')
 
@@ -22,7 +21,6 @@ class GelbooruMiner(commands.Cog):
         
         await interaction.response.defer()
 
-        # Failsafe: Mai complains if you forgot to add the keys to the .env file
         if not self.api_key or not self.user_id:
             await interaction.followup.send("i'm throwing a 401 because you didn't give me an api key. update the .env file or i literally cannot do this.")
             return
@@ -30,7 +28,6 @@ class GelbooruMiner(commands.Cog):
         safe_tags = f"{tags} rating:general sort:random"
         encoded_tags = urllib.parse.quote_plus(safe_tags)
         
-        # Mai injects her VIP credentials into the URL so Gelbooru lets her in
         url = f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=50&tags={encoded_tags}&api_key={self.api_key}&user_id={self.user_id}"
 
         headers = {
@@ -59,6 +56,35 @@ class GelbooruMiner(commands.Cog):
             chosen_post = random.choice(valid_posts)
             image_url = chosen_post.get('file_url')
             post_id = chosen_post.get('id')
+            
+            # Mai's casual dialogue options
+            dialogue_options = [
+                "bypassed the firewall and mined this. sfw filter is on.",
+                "found one. if it looks weird, blame your tags, not my algorithm.",
+                "database clearance accepted. here is your randomly sorted query.",
+                "image extracted. taking up my bandwidth for this... honestly typical."
+            ]
+            reply = random.choice(dialogue_options)
+
+            # Gelbooru sometimes returns .webm or .mp4 video files. Discord embeds can't play videos,
+            # so if it's a video, Mai just posts the raw link so Discord can generate a video player.
+            if image_url.endswith(('.webm', '.mp4')):
+                await interaction.followup.send(content=f"{reply}\n{image_url}")
+                self.recent_images.append(image_url)
+                return
+
+            # --- MAI'S MANUAL OVERRIDE: Download the image directly ---
+            async with self.bot.session.get(image_url, headers=headers) as img_resp:
+                if img_resp.status != 200:
+                    await interaction.followup.send("i found the file, but their server refused my download request.")
+                    return
+                img_bytes = await img_resp.read()
+
+            # Grab the actual filename (e.g. image.jpg) from the URL
+            filename = image_url.split('/')[-1]
+            
+            # Convert the raw bytes into a Discord File object
+            image_file = discord.File(io.BytesIO(img_bytes), filename=filename)
 
             self.recent_images.append(image_url)
 
@@ -67,17 +93,13 @@ class GelbooruMiner(commands.Cog):
                 url=f"https://gelbooru.com/index.php?page=post&s=view&id={post_id}",
                 color=0x1abc9c
             )
-            embed.set_image(url=image_url)
+            
+            # Tell the embed to use the file we are attaching to the message
+            embed.set_image(url=f"attachment://{filename}")
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
-            dialogue_options = [
-                "bypassed the firewall and mined this. sfw filter is on.",
-                "found one. if it looks weird, blame your tags, not my algorithm.",
-                "database clearance accepted. here is your randomly sorted query.",
-                "image extracted. taking up my bandwidth for this... honestly typical."
-            ]
-
-            await interaction.followup.send(content=random.choice(dialogue_options), embed=embed)
+            # Send the message, the embed, and the physical file all at once
+            await interaction.followup.send(content=reply, embed=embed, file=image_file)
 
         except Exception as e:
             print(f"Gelbooru Fetch Error: {e}")
