@@ -92,7 +92,6 @@ class GelbooruMiner(commands.Cog):
             )
             
             # Map the exact clean filename to the embed
-            embed.set_image(url=f"attachment://{clean_filename}")
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
             await interaction.followup.send(content=reply, embed=embed, file=image_file)
