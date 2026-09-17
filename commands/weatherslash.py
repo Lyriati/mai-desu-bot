@@ -25,7 +25,7 @@ class Weather(commands.Cog):
                     await interaction.followup.send(f"HTTP Error {resp.status}. The meteorological database is currently unresponsive.")
                     return
                 
-                data = await resp.json()
+                data = await resp.json(content_type=None)
 
             # Extract the core data from the JSON response
             current = data['current_condition'][0]
