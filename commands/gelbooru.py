@@ -57,7 +57,6 @@ class GelbooruMiner(commands.Cog):
             image_url = chosen_post.get('file_url')
             post_id = chosen_post.get('id')
             
-            # Mai's casual dialogue options
             dialogue_options = [
                 "bypassed the firewall and mined this. sfw filter is on.",
                 "found one. if it looks weird, blame your tags, not my algorithm.",
@@ -66,25 +65,23 @@ class GelbooruMiner(commands.Cog):
             ]
             reply = random.choice(dialogue_options)
 
-            # Gelbooru sometimes returns .webm or .mp4 video files. Discord embeds can't play videos,
-            # so if it's a video, Mai just posts the raw link so Discord can generate a video player.
             if image_url.endswith(('.webm', '.mp4')):
                 await interaction.followup.send(content=f"{reply}\n{image_url}")
                 self.recent_images.append(image_url)
                 return
 
-            # --- MAI'S MANUAL OVERRIDE: Download the image directly ---
             async with self.bot.session.get(image_url, headers=headers) as img_resp:
                 if img_resp.status != 200:
                     await interaction.followup.send("i found the file, but their server refused my download request.")
                     return
                 img_bytes = await img_resp.read()
 
-            # Grab the actual filename (e.g. image.jpg) from the URL
-            filename = image_url.split('/')[-1]
+            # --- THE FIX: Clean the filename so Discord doesn't freak out ---
+            # Grabs the file extension (jpg, png) and cuts off any weird ? numbers
+            ext = image_url.split('.')[-1].split('?')[0]
+            clean_filename = f"image.{ext}"
             
-            # Convert the raw bytes into a Discord File object
-            image_file = discord.File(io.BytesIO(img_bytes), filename=filename)
+            image_file = discord.File(io.BytesIO(img_bytes), filename=clean_filename)
 
             self.recent_images.append(image_url)
 
@@ -94,11 +91,10 @@ class GelbooruMiner(commands.Cog):
                 color=0x1abc9c
             )
             
-            # Tell the embed to use the file we are attaching to the message
-            embed.set_image(url=f"attachment://{filename}")
+            # Map the exact clean filename to the embed
+            embed.set_image(url=f"attachment://{clean_filename}")
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
-            # Send the message, the embed, and the physical file all at once
             await interaction.followup.send(content=reply, embed=embed, file=image_file)
 
         except Exception as e:
