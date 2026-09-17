@@ -91,8 +91,9 @@ class GelbooruMiner(commands.Cog):
                 color=0x1abc9c
             )
             
+            # --- ADD THIS EXACT LINE BACK ---
             embed.set_image(url=f"attachment://{clean_filename}")
-            # Map the exact clean filename to the embed
+            
             embed.set_footer(text=f"Tags: {tags} | Memory Cache: {len(self.recent_images)}/3")
 
             await interaction.followup.send(content=reply, embed=embed, file=image_file)
