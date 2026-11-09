@@ -11,7 +11,7 @@ class YouTubeNotifier(commands.Cog):
         self.bot = bot
         self.db_path = os.path.join(os.path.dirname(__file__), '..', 'youtube_subs.db')
         self.init_db()
-        self.check_youtube_feeds.start() # Starts the background loop
+        self.check_youtube_feeds.start()
 
     def init_db(self):
         # Creates a local database file on your Ubuntu server to track everything permanently
@@ -29,7 +29,7 @@ class YouTubeNotifier(commands.Cog):
         conn.commit()
         conn.close()
 
-async def get_channel_info(self, url: str):
+    async def get_channel_info(self, url: str):
         # Mai's failsafe: if you don't give her a real URL, she builds one assuming it's a channel handle
         if not url.startswith(('http://', 'https://')):
             clean_handle = url.lstrip('@')
