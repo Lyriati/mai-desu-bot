@@ -29,22 +29,32 @@ class YouTubeNotifier(commands.Cog):
         conn.commit()
         conn.close()
 
-    async def get_channel_info(self, url: str):
+async def get_channel_info(self, url: str):
+        # Mai's failsafe: if you don't give her a real URL, she builds one assuming it's a channel handle
+        if not url.startswith(('http://', 'https://')):
+            clean_handle = url.lstrip('@')
+            url = f"https://www.youtube.com/@{clean_handle}"
+
         # Mai forcefully rips the hidden channel ID out of the webpage's source code
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        async with self.bot.session.get(url, headers=headers) as resp:
-            if resp.status != 200:
-                return None, None
-            html = await resp.text()
-            
-            # Scrape the unique 24-character Channel ID and the channel's display name
-            id_match = re.search(r'itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"', html)
-            name_match = re.search(r'itemprop="name" content="(.*?)"', html)
-            
-            if not id_match:
-                return None, None
+        
+        try:
+            async with self.bot.session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    return None, None
+                html = await resp.text()
                 
-            return id_match.group(1), (name_match.group(1) if name_match else "Unknown Channel")
+                # Scrape the unique 24-character Channel ID and the channel's display name
+                id_match = re.search(r'itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"', html)
+                name_match = re.search(r'itemprop="name" content="(.*?)"', html)
+                
+                if not id_match:
+                    return None, None
+                    
+                return id_match.group(1), (name_match.group(1) if name_match else "Unknown Channel")
+        except Exception as e:
+            print(f"YouTube Scraper Error: {e}")
+            return None, None
 
     async def get_latest_video(self, channel_id: str):
         # Ping YouTube's hidden RSS feed to bypass the official API quotas
