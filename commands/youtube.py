@@ -35,8 +35,11 @@ class YouTubeNotifier(commands.Cog):
             clean_handle = url.lstrip('@')
             url = f"https://www.youtube.com/@{clean_handle}"
 
-        # Mai forcefully rips the hidden channel ID out of the webpage's source code
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        # Disguise Mai as a real browser and force English to avoid regional cookie popups
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
         
         try:
             async with self.bot.session.get(url, headers=headers) as resp:
@@ -44,18 +47,32 @@ class YouTubeNotifier(commands.Cog):
                     return None, None
                 html = await resp.text()
                 
-                # Scrape the unique 24-character Channel ID and the channel's display name
+                # Check 1: The standard HTML meta tag
                 id_match = re.search(r'itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"', html)
+                
+                # Check 2: Dig into YouTube's internal JavaScript data payload
+                if not id_match:
+                    id_match = re.search(r'"channelId":"(UC[a-zA-Z0-9_-]{22})"', html)
+                    
+                # Check 3: Check the raw RSS feed link hidden in the page head
+                if not id_match:
+                    id_match = re.search(r'href="https://www.youtube.com/feeds/videos.xml\?channel_id=(UC[a-zA-Z0-9_-]{22})"', html)
+
+                # Find the channel name
                 name_match = re.search(r'itemprop="name" content="(.*?)"', html)
+                if not name_match:
+                    name_match = re.search(r'<title>(.*?)(?: - YouTube)?</title>', html)
                 
                 if not id_match:
                     return None, None
                     
-                return id_match.group(1), (name_match.group(1) if name_match else "Unknown Channel")
+                channel_name = name_match.group(1).replace(" - YouTube", "") if name_match else "Unknown Channel"
+                return id_match.group(1), channel_name
+                
         except Exception as e:
             print(f"YouTube Scraper Error: {e}")
             return None, None
-
+        
     async def get_latest_video(self, channel_id: str):
         # Ping YouTube's hidden RSS feed to bypass the official API quotas
         rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
